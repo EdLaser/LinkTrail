@@ -26,11 +26,13 @@
         "zod": "^4.6.5"
     },
     "devDependencies": {
-        "@types/node": "26.6.3",
+        "@types/node": "^26.6.3",
         "nitro": "latest",
         "oxfmt": "^0.71.0",
         "oxlint": "^1.86.0",
         "oxlint-tsgolint": "^7.0.2003",
+        "prisma": "^7.10.0",
+        "tsx": "^4.23.15",
         "typescript": "^7.0.0"
     },
     "prisma": {

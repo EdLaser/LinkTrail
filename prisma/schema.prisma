@@ -3,6 +3,7 @@
 
 generator client {
     provider = "prisma-client-js"
+    previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
@@ -24,31 +25,38 @@ model AppUser {
 
 // One Hammerhead OAuth connection per AppUser
 model HammerheadAccount {
-    id           String   @id @default(uuid())
-    appUserId    String   @unique
-    refreshToken String
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
+    id                 String   @id @default(uuid())
+    appUserId          String   @unique
+    hammerheadUserId   String   // Remote user ID from Hammerhead
+    accessToken        String   // Encrypted AES-256-GCM
+    refreshToken       String   // Encrypted AES-256-GCM
+    scope              String   // Space-separated OAuth scopes granted
+    expiresAt          DateTime // Token expiry time for refresh logic
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
 
     appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
 
     @@map("hammerhead_accounts")
 }
 
-// Routes synced from Hammerhead
+// Routes synced from Bikemap to Hammerhead
 model SyncedRoute {
-    id            String   @id @default(uuid())
-    appUserId     String
-    hammerheadId  String
-    name          String
-    description   String?
-    distance      Float
-    elevationGain Float
-    createdAt     DateTime @default(now())
-    updatedAt     DateTime @updatedAt
+    id               String   @id @default(uuid())
+    appUserId        String
+    bikemapRouteId   String   // Identifier from Bikemap
+    hammerheadRouteId String  // Route ID returned by Hammerhead after creation/update
+    name             String
+    description      String?
+    distance         Float
+    elevationGain    Float
+    checksum         String   // SHA-256 of the GPX file content (detect changes)
+    lastSyncedAt     DateTime @default(now())
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
 
     appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
 
-    @@unique([appUserId, hammerheadId])
+    @@unique([appUserId, bikemapRouteId])
     @@map("synced_routes")
 }

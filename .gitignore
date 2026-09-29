@@ -8,6 +8,8 @@ package-manager-locks
 .env.local
 .env.*.local
 
+.output
+
 # Prisma
 prisma/migrations/
 .prisma/
