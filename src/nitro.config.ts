@@ -1,5 +1,8 @@
-import { defineConfig } from "nitro"
+import { defineConfig } from "nitro";
 
 export default defineConfig({
-  serverDir: './server',
+  serverDir: "./server",
+  experimental: {
+    tasks: true,
+  },
 });

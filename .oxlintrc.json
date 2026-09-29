@@ -1,13 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "import",
-    "typescript",
-    "unicorn",
-    "oxc",
-    "vue",
-    "promise"
-  ],
+  "plugins": ["import", "typescript", "unicorn", "oxc", "vue", "promise"],
   "env": {
     "browser": true
   },
@@ -45,10 +38,7 @@
   },
   "overrides": [
     {
-      "files": [
-        "*.test.ts",
-        "*.spec.ts"
-      ]
+      "files": ["*.test.ts", "*.spec.ts"]
     }
   ],
   "ignorePatterns": [
