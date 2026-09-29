@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "import",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "vue",
+    "promise"
+  ],
+  "env": {
+    "browser": true
+  },
+  "options": {
+    "typeAware": true
+  },
+  "settings": {},
+  "rules": {
+    "bad-bitwise-operator": "error",
+    "block-scoped-var": "error",
+    "button-has-type": "warn",
+    "consistent-function-scoping": "warn",
+    "eqeqeq": "warn",
+    "no-accumulating-spread": "error",
+    "no-array-for-each": "error",
+    "no-array-index-key": "warn",
+    "no-array-reduce": "warn",
+    "no-array-sort": "warn",
+    "no-commonjs": "warn",
+    "no-console": "warn",
+    "import/no-duplicates": "warn",
+    "no-empty": "error",
+    "no-eval": "error",
+    "no-nested-ternary": "warn",
+    "no-non-null-assertion": "warn",
+    "no-non-null-asserted-nullish-coalescing": "warn",
+    "no-plusplus": "warn",
+    "no-unused-expressions": "error",
+    "no-var": "error",
+    "no-map-spread": "warn",
+    "no-useless-concat": "error",
+    "promise/no-return-in-finally": "error",
+    "unicorn/prefer-set-has": "warn",
+    "no-unused-vars": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "*.test.ts",
+        "*.spec.ts"
+      ]
+    }
+  ],
+  "ignorePatterns": [
+    "node_modules/",
+    ".nuxt/",
+    ".output/",
+    "public/",
+    "assets/",
+    "./generateTypes.ts",
+    "generateTypes.ts",
+    "generateTypes"
+  ]
+}

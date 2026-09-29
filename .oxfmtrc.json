@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "singleAttributePerLine": true,
+  "sortTailwindcss": true,
+  "ignorePatterns": [
+    "dist/**",
+    ".nuxt/**",
+    "output/**",
+    "node_modules/**",
+    "**/*.md",
+    "**/*.yaml",
+    "**/*.yml",
+    "**/ui/**"
+  ]
+}

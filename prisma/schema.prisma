@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+// Your own application's user (e.g., a Bikemap account holder using your service)
+model AppUser {
+    id        String   @id @default(uuid())
+    email     String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    hammerheadAccount HammerheadAccount?
+    syncedRoutes      SyncedRoute[]
+
+    @@map("app_users")
+}
+
+// One Hammerhead OAuth connection per AppUser
+model HammerheadAccount {
+    id           String   @id @default(uuid())
+    appUserId    String   @unique
+    refreshToken String
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+    @@map("hammerhead_accounts")
+}
+
+// Routes synced from Hammerhead
+model SyncedRoute {
+    id            String   @id @default(uuid())
+    appUserId     String
+    hammerheadId  String
+    name          String
+    description   String?
+    distance      Float
+    elevationGain Float
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    appUser AppUser @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+    @@unique([appUserId, hammerheadId])
+    @@map("synced_routes")
+}

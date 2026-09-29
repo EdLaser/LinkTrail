@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+package-manager-locks
+*.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Prisma
+prisma/migrations/
+.prisma/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# OS specific
+Thumbs.db
+
+# Development
+.turbo/
+.cache/
+.eslintcache
+
+# Testing
+.jest_cache/
+.mocha_cache/
+
+# Temporary files
+*.tmp
+*.bak
