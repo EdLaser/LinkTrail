@@ -7,11 +7,11 @@
  *   - redirect_uri (optional): Where to redirect after OAuth callback completes
  */
 
-import { getConfig } from "~/server/utils/config";
-import { hammerheadClient } from "~/server/utils/hammerhead/client";
-import { createState } from "~/server/utils/stateStore";
-import { HAMMERHEAD_SCOPES } from "~/server/utils/hammerhead/types";
-import { db } from "~/server/utils/db";
+import { getConfig } from "~/server/utils/config.ts"
+import { hammerheadClient } from "~/server/utils/hammerhead/client.ts"
+import { createState } from "~/server/utils/stateStore.ts"
+import { HAMMERHEAD_SCOPES } from "~/server/utils/hammerhead/types.ts"
+import { db } from "~/server/utils/db.ts"
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);

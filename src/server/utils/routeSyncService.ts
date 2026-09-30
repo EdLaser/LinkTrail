@@ -4,10 +4,10 @@
  * Handles create/update/skip decisions based on checksums
  */
 
-import { db } from "~/server/utils/db";
-import { getValidAccessToken } from "~/server/utils/tokenService";
-import { hammerheadClient } from "~/server/utils/hammerhead/client";
-import { computeChecksum } from "~/server/utils/checksumService";
+import { db } from "~/server/utils/db.ts"
+import { getValidAccessToken } from "~/server/utils/tokenService.ts"
+import { hammerheadClient } from "~/server/utils/hammerhead/client.ts"
+import { computeChecksum } from "~/server/utils/checksumService.ts"
 
 export interface SyncResult {
   routeId: string;

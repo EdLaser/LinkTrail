@@ -1,6 +1,7 @@
-import { db } from "~/server/utils/db";
-import { encryptToken, decryptToken } from "~/server/utils/crypto";
-import { getConfig } from "~/server/utils/config";
+import { db } from "~/server/utils/db.ts";
+import { encryptToken, decryptToken } from "~/server/utils/crypto.ts";
+import { getConfig } from "~/server/utils/config.ts";
+import { hammerheadClient } from "~/server/utils/hammerhead/client.ts";
 
 /**
  * Type for token response from Hammerhead OAuth

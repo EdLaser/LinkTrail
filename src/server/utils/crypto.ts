@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
-import { getConfig } from "~/server/utils/config";
+import { getConfig } from "~/server/utils/config.ts";
 
 /**
  * AES-256-GCM encryption/decryption utilities for token storage.

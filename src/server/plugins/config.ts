@@ -1,4 +1,4 @@
-import { getConfig } from "~/server/utils/config";
+import { getConfig } from "~/server/utils/config.ts";
 
 /**
  * Nitro plugin that validates environment configuration on server startup.

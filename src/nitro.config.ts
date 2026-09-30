@@ -5,6 +5,9 @@ export default defineConfig({
   experimental: {
     tasks: true,
   },
+  alias: {
+    "~": new URL(".", import.meta.url).pathname,
+  },
   runtimeConfig: {
     // Server
     port: process.env.PORT || "3000",

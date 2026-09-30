@@ -20,11 +20,10 @@
  *   }
  */
 
-import { db } from "~/server/utils/db";
-import { getValidAccessToken } from "~/server/utils/tokenService";
-import { hammerheadClient } from "~/server/utils/hammerhead/client";
-import { getFormatFromFilename, MAX_FILE_SIZE } from "~/server/utils/routeFormats";
-import { computeChecksum } from "~/server/utils/checksumService";
+import { db } from "~/server/utils/db.ts";
+import { syncRoute } from "~/server/utils/routeSyncService.ts";
+import { getFormatFromFilename, MAX_FILE_SIZE } from "~/server/utils/routeFormats.ts";
+import { computeChecksum } from "~/server/utils/checksumService.ts";
 
 export default defineEventHandler(async (event) => {
   // TODO: In production, get user_id from session/JWT

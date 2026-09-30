@@ -11,11 +11,11 @@
  * The user_id is extracted from the state token for security
  */
 
-import { getConfig } from "~/server/utils/config";
-import { hammerheadClient } from "~/server/utils/hammerhead/client";
-import { validateAndConsumeState } from "~/server/utils/stateStore";
-import { saveTokens } from "~/server/utils/tokenService";
-import { db } from "~/server/utils/db";
+import { getConfig } from "~/server/utils/config.ts";
+import { hammerheadClient } from "~/server/utils/hammerhead/client.ts";
+import { validateAndConsumeState } from "~/server/utils/stateStore.ts";
+import { saveTokens } from "~/server/utils/tokenService.ts";
+import { db } from "~/server/utils/db.ts";
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);

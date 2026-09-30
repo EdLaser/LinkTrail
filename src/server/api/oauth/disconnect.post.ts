@@ -10,10 +10,10 @@
  *   - message: string
  */
 
-import { getConfig } from "~/server/utils/config"
-import { hammerheadClient } from "~/server/utils/hammerhead/client"
-import { deleteAccount } from "~/server/utils/tokenService"
-import { db } from "~/server/utils/db"
+import { getConfig } from "~/server/utils/config.ts"
+import { hammerheadClient } from "~/server/utils/hammerhead/client.ts"
+import { deleteAccount } from "~/server/utils/tokenService.ts"
+import { db } from "~/server/utils/db.ts"
 
 export default defineEventHandler(async (event) => {
   // TODO: In production, get user_id from session/JWT in Authorization header

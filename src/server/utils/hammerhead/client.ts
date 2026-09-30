@@ -1,4 +1,4 @@
-import { getConfig } from "~/server/utils/config";
+import { getConfig } from "~/server/utils/config.ts";
 import type {
   TokenResponse,
   TokenRequest,
