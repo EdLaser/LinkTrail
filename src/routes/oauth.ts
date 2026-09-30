@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { hammerheadAccounts } from "~/db/schema";
+import { requireAuth, requireAuthUser } from "~/lib/auth";
 import { decryptToken } from "~/lib/crypto";
 import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types";
 import { requireUser } from "~/lib/http";
@@ -151,15 +152,7 @@ const disconnectRoute = createRoute({
   path: "/api/oauth/disconnect",
   tags: ["OAuth"],
   summary: "Disconnect the Hammerhead account and revoke access",
-  // TODO: take user_id from a session/JWT instead of the request
-  request: {
-    query: z.object({ user_id: z.uuid().optional() }),
-    body: {
-      content: {
-        "application/json": { schema: z.object({ user_id: z.uuid().optional() }) },
-      },
-    },
-  },
+  security: [{ Bearer: [] }],
   responses: {
     200: {
       description: "Disconnected, or nothing was connected",
@@ -169,16 +162,17 @@ const disconnectRoute = createRoute({
         },
       },
     },
-    400: errorResponse("Missing or invalid user_id"),
+    401: errorResponse("Missing or invalid bearer token"),
     404: errorResponse("User not found"),
     500: errorResponse("Failed to delete the account"),
   },
 });
 
+oauthRoutes.use(disconnectRoute.getRoutingPath(), requireAuth);
+
 oauthRoutes.openapi(disconnectRoute, async (c) => {
   const { db, config, hammerhead } = c.var;
-  const userId = c.req.valid("json").user_id ?? c.req.valid("query").user_id;
-  const user = await requireUser(db, userId);
+  const user = await requireAuthUser(c);
 
   const [account] = await db
     .select()

@@ -1,6 +1,6 @@
 /**
  * Route sync service
- * Core logic for syncing routes between Bikemap and Hammerhead
+ * Fetches routes from a provider and syncs them to Hammerhead
  * Handles create/update/skip decisions based on checksums
  */
 
@@ -9,6 +9,7 @@ import type { Db } from "~/db/index";
 import { syncedRoutes } from "~/db/schema";
 import { getValidAccessToken } from "~/lib/tokenService";
 import type { Deps } from "~/lib/deps";
+import type { RouteSource } from "~/lib/providers/index";
 import { computeChecksum } from "~/lib/checksumService";
 
 export interface SyncResult {
@@ -19,35 +20,41 @@ export interface SyncResult {
   message: string;
 }
 
-async function findSyncedRoute(db: Db, userId: string, bikemapRouteId: string) {
+async function findSyncedRoute(db: Db, userId: string, source: RouteSource) {
   const [row] = await db
     .select()
     .from(syncedRoutes)
-    .where(and(eq(syncedRoutes.appUserId, userId), eq(syncedRoutes.bikemapRouteId, bikemapRouteId)))
+    .where(
+      and(
+        eq(syncedRoutes.appUserId, userId),
+        eq(syncedRoutes.provider, source.provider),
+        eq(syncedRoutes.sourceRouteId, source.routeId),
+      ),
+    )
     .limit(1);
   return row;
 }
 
 /**
- * Sync a route file to Hammerhead
+ * Sync a provider route to Hammerhead
  *
  * Logic:
  * 1. If route exists in SyncedRoute table with same checksum → SKIP
  * 2. If route exists in SyncedRoute table with different checksum → UPDATE
  * 3. If route doesn't exist in SyncedRoute table → CREATE
+ *
+ * @throws ProviderError if the provider can't deliver the route
  */
 export async function syncRoute(
   deps: Deps,
   userId: string,
-  bikemapRouteId: string,
-  fileBuffer: Buffer,
-  filename: string,
-  routeName?: string,
-  description?: string,
+  source: RouteSource,
 ): Promise<SyncResult> {
-  const { db, hammerhead } = deps;
-  const newChecksum = computeChecksum(fileBuffer);
-  const existingSync = await findSyncedRoute(db, userId, bikemapRouteId);
+  const { db, hammerhead, providers } = deps;
+
+  const route = await providers[source.provider].fetchRoute(source.routeId);
+  const newChecksum = computeChecksum(route.file);
+  const existingSync = await findSyncedRoute(db, userId, source);
 
   if (existingSync && existingSync.checksum === newChecksum) {
     return {
@@ -66,17 +73,17 @@ export async function syncRoute(
       const response = await hammerhead.updateRoute(
         accessToken,
         existingSync.hammerheadRouteId,
-        fileBuffer,
-        filename,
-        routeName,
-        description,
+        route.file,
+        route.filename,
+        route.name,
+        route.description,
       );
 
       await db
         .update(syncedRoutes)
         .set({
           name: response.name,
-          description: description ?? existingSync.description,
+          description: route.description ?? existingSync.description,
           distance: response.distance,
           elevationGain: response.elevationGain,
           checksum: newChecksum,
@@ -100,20 +107,21 @@ export async function syncRoute(
   try {
     const response = await hammerhead.createRoute(
       accessToken,
-      fileBuffer,
-      filename,
-      routeName,
-      description,
+      route.file,
+      route.filename,
+      route.name,
+      route.description,
     );
 
     const [created] = await db
       .insert(syncedRoutes)
       .values({
         appUserId: userId,
-        bikemapRouteId,
+        provider: source.provider,
+        sourceRouteId: source.routeId,
         hammerheadRouteId: response.id,
         name: response.name,
-        description,
+        description: route.description,
         distance: response.distance,
         elevationGain: response.elevationGain,
         checksum: newChecksum,
@@ -142,36 +150,20 @@ export async function syncRoute(
 export async function batchSyncRoutes(
   deps: Deps,
   userId: string,
-  routes: Array<{
-    bikemapRouteId: string;
-    fileBuffer: Buffer;
-    filename: string;
-    routeName?: string;
-    description?: string;
-  }>,
+  sources: RouteSource[],
 ): Promise<{
   successful: SyncResult[];
-  failed: Array<{ bikemapRouteId: string; error: string }>;
+  failed: Array<{ source: RouteSource; error: string }>;
 }> {
   const successful: SyncResult[] = [];
-  const failed: Array<{ bikemapRouteId: string; error: string }> = [];
+  const failed: Array<{ source: RouteSource; error: string }> = [];
 
-  for (const route of routes) {
+  for (const source of sources) {
     try {
-      successful.push(
-        await syncRoute(
-          deps,
-          userId,
-          route.bikemapRouteId,
-          route.fileBuffer,
-          route.filename,
-          route.routeName,
-          route.description,
-        ),
-      );
+      successful.push(await syncRoute(deps, userId, source));
     } catch (err) {
       failed.push({
-        bikemapRouteId: route.bikemapRouteId,
+        source,
         error: err instanceof Error ? err.message : "Unknown error",
       });
     }
@@ -186,14 +178,14 @@ export async function batchSyncRoutes(
 export async function getRouteSyncStatus(
   db: Db,
   userId: string,
-  bikemapRouteId: string,
+  source: RouteSource,
 ): Promise<{
   isSynced: boolean;
   hammerheadRouteId?: string;
   checksum?: string;
   lastSyncedAt?: Date;
 }> {
-  const sync = await findSyncedRoute(db, userId, bikemapRouteId);
+  const sync = await findSyncedRoute(db, userId, source);
 
   if (!sync) {
     return { isSynced: false };
@@ -214,7 +206,8 @@ export async function listSyncedRoutes(db: Db, userId: string) {
   return db
     .select({
       id: syncedRoutes.id,
-      bikemapRouteId: syncedRoutes.bikemapRouteId,
+      provider: syncedRoutes.provider,
+      sourceRouteId: syncedRoutes.sourceRouteId,
       hammerheadRouteId: syncedRoutes.hammerheadRouteId,
       checksum: syncedRoutes.checksum,
       lastSyncedAt: syncedRoutes.lastSyncedAt,

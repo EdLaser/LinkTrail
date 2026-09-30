@@ -1,11 +1,5 @@
-import {
-  doublePrecision,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { doublePrecision, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import type { RouteProviderId } from "~/lib/providers/index";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -15,7 +9,7 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 };
 
-// Our own application's user (e.g., a Bikemap account holder using this service)
+// Our own application's user (a person who syncs routes to their Hammerhead device)
 export const appUsers = pgTable("app_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
@@ -38,7 +32,7 @@ export const hammerheadAccounts = pgTable("hammerhead_accounts", {
   ...timestamps,
 });
 
-// Routes synced from Bikemap to Hammerhead
+// Routes synced from a route provider (e.g. Bikemap) to Hammerhead
 export const syncedRoutes = pgTable(
   "synced_routes",
   {
@@ -46,7 +40,8 @@ export const syncedRoutes = pgTable(
     appUserId: uuid("app_user_id")
       .notNull()
       .references(() => appUsers.id, { onDelete: "cascade" }),
-    bikemapRouteId: text("bikemap_route_id").notNull(),
+    provider: text("provider").$type<RouteProviderId>().notNull(),
+    sourceRouteId: text("source_route_id").notNull(),
     hammerheadRouteId: text("hammerhead_route_id").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -57,5 +52,5 @@ export const syncedRoutes = pgTable(
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
   },
-  (t) => [unique().on(t.appUserId, t.bikemapRouteId)],
+  (t) => [unique().on(t.appUserId, t.provider, t.sourceRouteId)],
 );

@@ -3,9 +3,9 @@ Hammherad Dashboard Integration of external Routing Providers
 
 Here's a complete `README.md` for the repository, matching the architecture and stack from the backend code above.
 
-A backend service that connects [Bikemap](https://web.bikemap.net/discover) routes to your [Hammerhead Karoo](https://www.hammerhead.io/) bike computer via the official [Hammerhead Developer API](https://api.hammerhead.io/v1/docs).
+A backend service that syncs routes from external route providers (currently [Bikemap](https://web.bikemap.net/discover)) to your [Hammerhead Karoo](https://www.hammerhead.io/) bike computer via the official [Hammerhead Developer API](https://api.hammerhead.io/v1/docs).
 
-Once a user connects their Hammerhead account, routes are converted to GPX and pushed to their Hammerhead Dashboard account, from which they automatically sync to their paired Karoo device over WiFi or the Hammerhead Companion App.
+Once a user connects their Hammerhead account, routes are fetched from the provider and pushed to their Hammerhead Dashboard account, from which they automatically sync to their paired Karoo device over WiFi or the Hammerhead Companion App.
 
 ---
 
@@ -36,11 +36,11 @@ Once a user connects their Hammerhead account, routes are converted to GPX and p
 │  Browser   │ ◀─────────────────────────── │ (Fastify + Postgres)  │ ◀───────────────────────────── │   Cloud API │
 └────────────┘   2. Redirect w/ auth code   └──────────────────────┘   4. Webhook: activity events  └─────────────┘
                                                        ▲
-                                                       │ Route data (GPX/URL upload)
+                                                       │ Route file (fetched by the server)
                                                        │
                                                ┌────────────────┐
-                                               │  Bikemap route  │
-                                               │ (manual/export) │
+                                               │ Route provider │
+                                               │   (Bikemap)    │
                                                └────────────────┘
                                                        │
                                                        ▼
@@ -54,7 +54,7 @@ Once a user connects their Hammerhead account, routes are converted to GPX and p
 2. Your backend redirects them through Hammerhead's OAuth2 authorization screen.
 3. Hammerhead redirects back to your `redirect_uri` with an authorization `code`.
 4. Backend exchanges the code for an `access_token` / `refresh_token` pair and stores them (encrypted) in Postgres.
-5. When a Bikemap route is submitted to your service, it's converted to GPX and pushed to `/routes/file` on behalf of the user.
+5. When a sync is requested for a provider route (`provider` + `source_route_id`), the service downloads the route file from the provider and pushes it to `/routes/file` on behalf of the user.
 6. Hammerhead's cloud syncs the route to the user's Karoo automatically.
 7. Hammerhead sends activity webhooks to this service, which are signature-verified and stored/processed.
 
@@ -149,6 +149,13 @@ HAMMERHEAD_WEBHOOK_SECRET=your_webhook_signing_secret_here
 
 # Token encryption (32-byte hex key for AES-256-GCM)
 TOKEN_ENCRYPTION_KEY=generate_with_openssl_rand_hex_32
+
+# Route providers
+# URL the Bikemap provider downloads a GPX from; {id} is replaced by the route ID
+BIKEMAP_GPX_URL_TEMPLATE=https://example.com/routes/{id}.gpx
+
+# API auth: HS256 secret used to verify bearer tokens (min 32 chars)
+JWT_SECRET=generate_with_openssl_rand_hex_32
 ```
 
 Generate a secure encryption key:
@@ -165,9 +172,9 @@ openssl rand -hex 32
 
 Schema is managed via Drizzle (`src/db/schema.ts`), with generated SQL migrations in `drizzle/`. Core tables:
 
-- **`app_users`** — a user of your service (e.g. a Bikemap account holder)
+- **`app_users`** — a user of your service
 - **`hammerhead_accounts`** — the OAuth token pair + metadata linked to an app user
-- **`synced_routes`** — mapping between a Bikemap route ID and the resulting Hammerhead route ID, used to avoid duplicate pushes
+- **`synced_routes`** — mapping between a provider route (`provider` + `source_route_id`) and the resulting Hammerhead route ID, used to avoid duplicate pushes
 
 To inspect the data visually:
 
@@ -228,20 +235,37 @@ Routes are Hono routers in `src/routes/` mounted in `src/app.ts`. For example:
 | `GET` | `/oauth/start` | Redirects the user to Hammerhead's OAuth authorization screen |
 | `GET` | `/oauth/callback` | Receives the authorization code, exchanges it for tokens, stores them |
 | `POST` | `/webhooks/hammerhead` | Receives and verifies Hammerhead activity notification webhooks |
-| `POST` | `/sync/route` | Accepts a Bikemap route (GPX file or URL) and pushes it to the connected Hammerhead account |
+| `POST` | `/api/sync/route` | Fetches a route from a provider and pushes it to the connected Hammerhead account (bearer token) |
+| `POST` | `/api/oauth/disconnect` | Revokes and removes the Hammerhead connection (bearer token) |
 | `GET` | `/health` | Basic health check |
 
-Example: trigger a manual route sync for a connected user
+Example: sync a route for a connected user
 
 ```bash
-curl -X POST https://yourdomain.com/sync/route \
+curl -X POST "https://yourdomain.com/api/sync/route" \
+  -H "Authorization: Bearer <jwt>" \
   -H "Content-Type: application/json" \
-  -d '{
-        "appUserId": "uuid-of-app-user",
-        "bikemapRouteId": "123456",
-        "gpxUrl": "https://web.bikemap.net/route/123456.gpx"
-      }'
+  -d '{ "provider": "bikemap", "source_route_id": "123456" }'
 ```
+
+### Authentication
+
+`/api/*` endpoints expect an `Authorization: Bearer <jwt>` header. The service only verifies tokens, it does not issue them: your own app signs an HS256 JWT with `JWT_SECRET`, with the app user's ID (a UUID from `app_users`) as the `sub` claim and a short `exp`. For local testing:
+
+```ts
+import { sign } from "hono/jwt";
+const token = await sign({ sub: "<app-user-id>", exp: Math.floor(Date.now() / 1000) + 600 }, process.env.JWT_SECRET!);
+```
+
+`GET /oauth/start` still takes a `user_id` query parameter because it is opened as a browser redirect.
+
+The response `action` is `created`, `updated` or `skipped` depending on whether the file changed since the last sync. The OpenAPI spec is served at `GET /doc`.
+
+### Adding a route provider
+
+1. Add the provider ID to `PROVIDER_IDS` in `src/lib/providers/index.ts`.
+2. Implement `RouteProvider` (`fetchRoute(sourceRouteId)`) in `src/lib/providers/<name>.ts` and register it in `createProviders`. TypeScript reports an error until every ID has an implementation.
+3. Add any provider config to `src/lib/config.ts`.
 
 ---
 

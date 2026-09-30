@@ -9,6 +9,12 @@ export const app = createRouter();
 
 app.use(depsMiddleware);
 
+app.openAPIRegistry.registerComponent("securitySchemes", "Bearer", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+});
+
 const healthRoute = createRoute({
   method: "get",
   path: "/health",

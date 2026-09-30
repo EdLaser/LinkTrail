@@ -11,6 +11,13 @@ const configSchema = z.object({
   hammerheadScopes: z.string().default("route:write route:read"),
   // 32-byte key as hex for AES-256-GCM
   tokenEncryptionKey: z.string().regex(/^[0-9a-f]{64}$/),
+  // HS256 secret used to verify API bearer tokens
+  jwtSecret: z.string().min(32),
+  // e.g. https://example.com/routes/{id}.gpx
+  bikemapGpxUrlTemplate: z
+    .string()
+    .refine((v) => v.includes("{id}"), "must contain {id}")
+    .optional(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -27,6 +34,8 @@ export function parseConfig(env: Record<string, string | undefined>): AppConfig 
     hammerheadRedirectUri: env.HAMMERHEAD_REDIRECT_URI,
     hammerheadScopes: env.HAMMERHEAD_SCOPES,
     tokenEncryptionKey: env.TOKEN_ENCRYPTION_KEY,
+    jwtSecret: env.JWT_SECRET,
+    bikemapGpxUrlTemplate: env.BIKEMAP_GPX_URL_TEMPLATE || undefined,
   });
 
   if (!parsed.success) {

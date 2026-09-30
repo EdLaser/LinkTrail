@@ -23,10 +23,11 @@
     },
     "devDependencies": {
         "@types/bun": "latest",
-        "drizzle-kit": "rc",
+        "drizzle-kit": "^0.31",
         "oxfmt": "^0.71.0",
         "oxlint": "^1.86.0",
         "oxlint-tsgolint": "^7.0.2003",
+        "postgres": "^3.4.9",
         "typescript": "^7.0.0"
     }
 }

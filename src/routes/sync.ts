@@ -1,37 +1,34 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
-import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import { hammerheadAccounts } from "~/db/schema";
-import { requireUser } from "~/lib/http";
+import { requireAuth, requireAuthUser } from "~/lib/auth";
 import { createRouter, errorResponse } from "~/lib/openapi";
-import { getFormatFromFilename, MAX_FILE_SIZE } from "~/lib/routeFormats";
+import { PROVIDER_IDS } from "~/lib/providers/index";
+import { ProviderError } from "~/lib/providers/types";
 import { syncRoute } from "~/lib/routeSyncService";
 
 export const syncRoutes = createRouter();
-
-// Headroom for the other multipart fields and boundaries around the file
-const MULTIPART_OVERHEAD = 64 * 1024;
 
 const syncRouteDef = createRoute({
   method: "post",
   path: "/api/sync/route",
   tags: ["Sync"],
-  summary: "Upload a route file and sync it to Hammerhead",
+  summary: "Fetch a route from a provider and sync it to Hammerhead",
   description:
-    "Creates, updates or skips the route depending on the file checksum. Supported formats: GPX, FIT, TCX, KML, KMZ.",
-  // TODO: take user_id from a session/JWT instead of the query
+    "Creates, updates or skips the route depending on the file checksum reported by the provider.",
+  security: [{ Bearer: [] }],
   request: {
-    query: z.object({ user_id: z.uuid() }),
     body: {
       required: true,
       content: {
-        "multipart/form-data": {
+        "application/json": {
           schema: z.object({
-            file: z.instanceof(File).openapi({ type: "string", format: "binary" }),
-            bikemap_route_id: z.string().optional(),
-            route_name: z.string().optional(),
-            description: z.string().optional(),
+            provider: z.enum(PROVIDER_IDS).openapi({ description: "Route provider" }),
+            source_route_id: z
+              .string()
+              .min(1)
+              .openapi({ description: "The route's ID at the provider" }),
           }),
         },
       },
@@ -54,29 +51,19 @@ const syncRouteDef = createRoute({
         },
       },
     },
-    400: errorResponse("Invalid parameters or unsupported file"),
+    400: errorResponse("Invalid parameters"),
+    401: errorResponse("Missing or invalid bearer token"),
     403: errorResponse("User has not connected a Hammerhead account"),
-    404: errorResponse("User not found"),
-    413: errorResponse("File too large"),
-    502: errorResponse("Sync with Hammerhead failed"),
+    404: errorResponse("User, or route at the provider, not found"),
+    502: errorResponse("Fetching from the provider or syncing with Hammerhead failed"),
   },
 });
 
-syncRoutes.use(
-  syncRouteDef.getRoutingPath(),
-  bodyLimit({
-    maxSize: MAX_FILE_SIZE + MULTIPART_OVERHEAD,
-    onError: () => {
-      throw new HTTPException(413, {
-        message: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024} MB`,
-      });
-    },
-  }),
-);
+syncRoutes.use(syncRouteDef.getRoutingPath(), requireAuth);
 
 syncRoutes.openapi(syncRouteDef, async (c) => {
   const { db } = c.var;
-  const user = await requireUser(db, c.req.valid("query").user_id);
+  const user = await requireAuthUser(c);
 
   const [account] = await db
     .select({ id: hammerheadAccounts.id })
@@ -87,32 +74,10 @@ syncRoutes.openapi(syncRouteDef, async (c) => {
     throw new HTTPException(403, { message: "User has not connected Hammerhead account" });
   }
 
-  const { file, bikemap_route_id, route_name, description } = c.req.valid("form");
-
-  if (!file.name) {
-    throw new HTTPException(400, { message: "File must have a filename" });
-  }
-  if (!getFormatFromFilename(file.name)) {
-    throw new HTTPException(400, {
-      message: "Unsupported file format. Supported: GPX, FIT, TCX, KML, KMZ",
-    });
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    throw new HTTPException(413, {
-      message: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024} MB`,
-    });
-  }
+  const { provider, source_route_id } = c.req.valid("json");
 
   try {
-    const result = await syncRoute(
-      c.var,
-      user.id,
-      bikemap_route_id || `local_${Date.now()}`,
-      Buffer.from(await file.arrayBuffer()),
-      file.name,
-      route_name,
-      description,
-    );
+    const result = await syncRoute(c.var, user.id, { provider, routeId: source_route_id });
 
     return c.json(
       {
@@ -127,6 +92,9 @@ syncRoutes.openapi(syncRouteDef, async (c) => {
       200,
     );
   } catch (err) {
+    if (err instanceof ProviderError && err.kind === "not_found") {
+      throw new HTTPException(404, { message: err.message });
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     throw new HTTPException(502, { message: msg });
   }
