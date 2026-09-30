@@ -1,4 +1,7 @@
 import { drizzle } from "drizzle-orm/bun-sql";
-import { getConfig } from "~/lib/config.ts";
 
-export const db = drizzle(getConfig().databaseUrl);
+export function createDb(databaseUrl: string) {
+  return drizzle(databaseUrl);
+}
+
+export type Db = ReturnType<typeof createDb>;

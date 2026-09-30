@@ -5,10 +5,10 @@
  */
 
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "~/db/index.ts";
+import type { Db } from "~/db/index.ts";
 import { syncedRoutes } from "~/db/schema.ts";
 import { getValidAccessToken } from "~/lib/tokenService.ts";
-import { hammerheadClient } from "~/lib/hammerhead/client.ts";
+import type { Deps } from "~/lib/deps.ts";
 import { computeChecksum } from "~/lib/checksumService.ts";
 
 export interface SyncResult {
@@ -19,7 +19,7 @@ export interface SyncResult {
   message: string;
 }
 
-async function findSyncedRoute(userId: string, bikemapRouteId: string) {
+async function findSyncedRoute(db: Db, userId: string, bikemapRouteId: string) {
   const [row] = await db
     .select()
     .from(syncedRoutes)
@@ -37,6 +37,7 @@ async function findSyncedRoute(userId: string, bikemapRouteId: string) {
  * 3. If route doesn't exist in SyncedRoute table → CREATE
  */
 export async function syncRoute(
+  deps: Deps,
   userId: string,
   bikemapRouteId: string,
   fileBuffer: Buffer,
@@ -44,8 +45,9 @@ export async function syncRoute(
   routeName?: string,
   description?: string,
 ): Promise<SyncResult> {
+  const { db, hammerhead } = deps;
   const newChecksum = computeChecksum(fileBuffer);
-  const existingSync = await findSyncedRoute(userId, bikemapRouteId);
+  const existingSync = await findSyncedRoute(db, userId, bikemapRouteId);
 
   if (existingSync && existingSync.checksum === newChecksum) {
     return {
@@ -57,11 +59,11 @@ export async function syncRoute(
     };
   }
 
-  const accessToken = await getValidAccessToken(userId);
+  const accessToken = await getValidAccessToken(deps, userId);
 
   if (existingSync) {
     try {
-      const response = await hammerheadClient.updateRoute(
+      const response = await hammerhead.updateRoute(
         accessToken,
         existingSync.hammerheadRouteId,
         fileBuffer,
@@ -96,7 +98,7 @@ export async function syncRoute(
   }
 
   try {
-    const response = await hammerheadClient.createRoute(
+    const response = await hammerhead.createRoute(
       accessToken,
       fileBuffer,
       filename,
@@ -138,6 +140,7 @@ export async function syncRoute(
  * Returns results for each route with any errors captured
  */
 export async function batchSyncRoutes(
+  deps: Deps,
   userId: string,
   routes: Array<{
     bikemapRouteId: string;
@@ -157,6 +160,7 @@ export async function batchSyncRoutes(
     try {
       successful.push(
         await syncRoute(
+          deps,
           userId,
           route.bikemapRouteId,
           route.fileBuffer,
@@ -180,6 +184,7 @@ export async function batchSyncRoutes(
  * Get sync status for a route
  */
 export async function getRouteSyncStatus(
+  db: Db,
   userId: string,
   bikemapRouteId: string,
 ): Promise<{
@@ -188,7 +193,7 @@ export async function getRouteSyncStatus(
   checksum?: string;
   lastSyncedAt?: Date;
 }> {
-  const sync = await findSyncedRoute(userId, bikemapRouteId);
+  const sync = await findSyncedRoute(db, userId, bikemapRouteId);
 
   if (!sync) {
     return { isSynced: false };
@@ -205,7 +210,7 @@ export async function getRouteSyncStatus(
 /**
  * List all synced routes for a user
  */
-export async function listSyncedRoutes(userId: string) {
+export async function listSyncedRoutes(db: Db, userId: string) {
   return db
     .select({
       id: syncedRoutes.id,

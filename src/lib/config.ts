@@ -1,14 +1,13 @@
 import { z } from "zod";
 
 const configSchema = z.object({
-  port: z.coerce.number().int().positive().default(3000),
   nodeEnv: z.enum(["development", "production", "test"]).default("development"),
-  baseUrl: z.string().url().default("http://localhost:3000"),
-  databaseUrl: z.string().url(),
-  hammerheadApiBaseUrl: z.string().url().default("https://api.hammerhead.io/v1"),
+  baseUrl: z.url().default("http://localhost:3000"),
+  databaseUrl: z.url(),
+  hammerheadApiBaseUrl: z.url().default("https://api.hammerhead.io/v1"),
   hammerheadClientId: z.string().min(1),
   hammerheadClientSecret: z.string().min(1),
-  hammerheadRedirectUri: z.string().url(),
+  hammerheadRedirectUri: z.url(),
   hammerheadScopes: z.string().default("route:write route:read"),
   // 32-byte key as hex for AES-256-GCM
   tokenEncryptionKey: z.string().regex(/^[0-9a-f]{64}$/),
@@ -16,15 +15,9 @@ const configSchema = z.object({
 
 export type AppConfig = z.infer<typeof configSchema>;
 
-let cached: AppConfig | undefined;
-
-/** Validates process.env once and returns typed config; throws on invalid input. */
-export function getConfig(): AppConfig {
-  if (cached) return cached;
-
-  const env = process.env;
+/** Validates raw environment variables (e.g. from Hono's `env(c)`); throws on invalid input. */
+export function parseConfig(env: Record<string, string | undefined>): AppConfig {
   const parsed = configSchema.safeParse({
-    port: env.PORT,
     nodeEnv: env.NODE_ENV,
     baseUrl: env.BASE_URL,
     databaseUrl: env.DATABASE_URL,
@@ -41,6 +34,5 @@ export function getConfig(): AppConfig {
     throw new Error(`Invalid configuration:\n${issues}`);
   }
 
-  cached = parsed.data;
-  return cached;
+  return parsed.data;
 }

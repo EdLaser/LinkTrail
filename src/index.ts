@@ -1,11 +1,12 @@
 import { app } from "~/app.ts";
-import { getConfig } from "~/lib/config.ts";
 
-// Fail fast on invalid environment before serving requests
-const config = getConfig();
-console.log(`Configuration loaded: ${config.nodeEnv} mode on port ${config.port}`);
+// Config is only readable through a request context (env(c)), so probe once to fail fast on bad env
+const probe = await app.request("/health");
+if (!probe.ok) {
+  throw new Error("Invalid configuration, see the error above");
+}
 
+// Bun picks the port from the PORT env var (default 3000)
 export default {
-  port: config.port,
   fetch: app.fetch,
 };

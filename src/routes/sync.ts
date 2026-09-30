@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
-import { db } from "~/db/index.ts";
 import { hammerheadAccounts } from "~/db/schema.ts";
+import type { AppEnv } from "~/lib/deps.ts";
 import { getFormatFromFilename, MAX_FILE_SIZE } from "~/lib/routeFormats.ts";
 import { requireUser } from "~/lib/http.ts";
 import { syncRoute } from "~/lib/routeSyncService.ts";
 
-export const syncRoutes = new Hono();
+export const syncRoutes = new Hono<AppEnv>();
 
 // Headroom for the other multipart fields and boundaries around the file
 const MULTIPART_OVERHEAD = 64 * 1024;
@@ -29,7 +29,8 @@ syncRoutes.post(
     },
   }),
   async (c) => {
-    const user = await requireUser(c.req.query("user_id"));
+    const { db } = c.var;
+    const user = await requireUser(db, c.req.query("user_id"));
 
     const [account] = await db
       .select({ id: hammerheadAccounts.id })
@@ -71,6 +72,7 @@ syncRoutes.post(
 
     try {
       const result = await syncRoute(
+        c.var,
         user.id,
         bikemapRouteId,
         Buffer.from(await file.arrayBuffer()),

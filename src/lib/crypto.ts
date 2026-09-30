@@ -1,5 +1,4 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
-import { getConfig } from "~/lib/config.ts";
 
 /**
  * AES-256-GCM encryption/decryption utilities for token storage.
@@ -16,12 +15,10 @@ interface EncryptedPayload {
 /**
  * Encrypt plaintext using AES-256-GCM
  * @param plaintext The token/secret to encrypt
+ * @param keyHex Pre-shared encryption key (TOKEN_ENCRYPTION_KEY)
  * @returns JSON-encoded encrypted payload (iv, ciphertext, authTag)
  */
-export function encryptToken(plaintext: string): string {
-  const config = getConfig();
-  const keyHex = config.tokenEncryptionKey;
-
+export function encryptToken(plaintext: string, keyHex: string): string {
   // Generate random IV and salt for this encryption
   const iv = randomBytes(12); // 96-bit IV for GCM
   const salt = randomBytes(16);
@@ -53,13 +50,11 @@ export function encryptToken(plaintext: string): string {
 /**
  * Decrypt an encrypted payload
  * @param encrypted JSON-encoded encrypted payload
+ * @param keyHex Pre-shared encryption key (TOKEN_ENCRYPTION_KEY)
  * @returns Decrypted plaintext
  * @throws Error if decryption fails (tampering detected)
  */
-export function decryptToken(encrypted: string): string {
-  const config = getConfig();
-  const keyHex = config.tokenEncryptionKey;
-
+export function decryptToken(encrypted: string, keyHex: string): string {
   let payload: EncryptedPayload;
   try {
     payload = JSON.parse(encrypted);

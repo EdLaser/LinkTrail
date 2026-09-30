@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { db } from "~/db/index.ts";
 import { hammerheadAccounts, syncedRoutes } from "~/db/schema.ts";
+import type { AppConfig } from "~/lib/config.ts";
 import { encryptToken, decryptToken } from "~/lib/crypto.ts";
-import { getConfig } from "~/lib/config.ts";
+import type { Deps } from "~/lib/deps.ts";
 
 /**
  * Type for token response from Hammerhead OAuth
@@ -26,6 +26,7 @@ const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before actua
  * Called immediately after successful OAuth exchange.
  */
 export async function saveTokens(
+  { db, config }: Deps,
   appUserId: string,
   hammerheadUserId: string,
   tokenResponse: HammerheadTokenResponse,
@@ -33,8 +34,11 @@ export async function saveTokens(
   const expiresAt = new Date(Date.now() + tokenResponse.expires_in * 1000);
 
   // Encrypt tokens before storing
-  const encryptedAccessToken = encryptToken(tokenResponse.access_token);
-  const encryptedRefreshToken = encryptToken(tokenResponse.refresh_token);
+  const encryptedAccessToken = encryptToken(tokenResponse.access_token, config.tokenEncryptionKey);
+  const encryptedRefreshToken = encryptToken(
+    tokenResponse.refresh_token,
+    config.tokenEncryptionKey,
+  );
 
   // Upsert HammerheadAccount
   const values = {
@@ -55,7 +59,8 @@ export async function saveTokens(
  * If token is expired or expiring soon, refresh it automatically.
  * @throws Error if user has no linked Hammerhead account or refresh fails
  */
-export async function getValidAccessToken(appUserId: string): Promise<string> {
+export async function getValidAccessToken(deps: Deps, appUserId: string): Promise<string> {
+  const { db, config } = deps;
   const [account] = await db
     .select()
     .from(hammerheadAccounts)
@@ -74,7 +79,7 @@ export async function getValidAccessToken(appUserId: string): Promise<string> {
   if (!needsRefresh) {
     // Token is still valid, decrypt and return it
     try {
-      return decryptToken(account.accessToken);
+      return decryptToken(account.accessToken, config.tokenEncryptionKey);
     } catch (e) {
       throw new Error(`Failed to decrypt access token for user ${appUserId}`);
     }
@@ -82,11 +87,11 @@ export async function getValidAccessToken(appUserId: string): Promise<string> {
 
   // Token expired or expiring soon, refresh it
   try {
-    const decryptedRefreshToken = decryptToken(account.refreshToken);
-    const newTokenResponse = await refreshAccessToken(decryptedRefreshToken);
+    const decryptedRefreshToken = decryptToken(account.refreshToken, config.tokenEncryptionKey);
+    const newTokenResponse = await refreshAccessToken(config, decryptedRefreshToken);
 
     // Update database with new tokens
-    await saveTokens(appUserId, account.hammerheadUserId, newTokenResponse);
+    await saveTokens(deps, appUserId, account.hammerheadUserId, newTokenResponse);
 
     return newTokenResponse.access_token;
   } catch (e) {
@@ -100,9 +105,10 @@ export async function getValidAccessToken(appUserId: string): Promise<string> {
  * Call Hammerhead OAuth token endpoint to refresh an access token.
  * This is a direct HTTP call to Hammerhead's API.
  */
-export async function refreshAccessToken(refreshToken: string): Promise<HammerheadTokenResponse> {
-  const config = getConfig();
-
+export async function refreshAccessToken(
+  config: AppConfig,
+  refreshToken: string,
+): Promise<HammerheadTokenResponse> {
   const response = await fetch(`${config.hammerheadApiBaseUrl}/auth/oauth/token`, {
     method: "POST",
     headers: {
@@ -127,7 +133,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<Hammerhe
  * Delete a user's Hammerhead account and all associated data.
  * Called when user disconnects or Hammerhead revokes access.
  */
-export async function deleteAccount(appUserId: string): Promise<void> {
+export async function deleteAccount({ db }: Deps, appUserId: string): Promise<void> {
   // Delete associated SyncedRoutes first (cascade would work, but explicit is clearer)
   await db.delete(syncedRoutes).where(eq(syncedRoutes.appUserId, appUserId));
 

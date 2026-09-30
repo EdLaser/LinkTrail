@@ -1,4 +1,4 @@
-import { getConfig } from "~/lib/config.ts";
+import type { AppConfig } from "~/lib/config.ts";
 import type {
   TokenResponse,
   TokenRequest,
@@ -31,8 +31,7 @@ export class HammerheadClient {
   private clientSecret: string;
   private redirectUri: string;
 
-  constructor() {
-    const config = getConfig();
+  constructor(config: AppConfig) {
     this.baseUrl = config.hammerheadApiBaseUrl;
     this.clientId = config.hammerheadClientId;
     this.clientSecret = config.hammerheadClientSecret;
@@ -251,6 +250,3 @@ export class HammerheadClient {
     }
   }
 }
-
-// Export singleton instance
-export const hammerheadClient = new HammerheadClient();
