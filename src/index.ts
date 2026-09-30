@@ -1,4 +1,4 @@
-import { app } from "~/app.ts";
+import { app } from "~/app";
 
 // Config is only readable through a request context (env(c)), so probe once to fail fast on bad env
 const probe = await app.request("/health");

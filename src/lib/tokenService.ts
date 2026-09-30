@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { hammerheadAccounts, syncedRoutes } from "~/db/schema.ts";
-import type { AppConfig } from "~/lib/config.ts";
-import { encryptToken, decryptToken } from "~/lib/crypto.ts";
-import type { Deps } from "~/lib/deps.ts";
+import { hammerheadAccounts, syncedRoutes } from "~/db/schema";
+import type { AppConfig } from "~/lib/config";
+import { encryptToken, decryptToken } from "~/lib/crypto";
+import type { Deps } from "~/lib/deps";
 
 /**
  * Type for token response from Hammerhead OAuth

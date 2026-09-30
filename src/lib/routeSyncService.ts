@@ -5,11 +5,11 @@
  */
 
 import { and, desc, eq } from "drizzle-orm";
-import type { Db } from "~/db/index.ts";
-import { syncedRoutes } from "~/db/schema.ts";
-import { getValidAccessToken } from "~/lib/tokenService.ts";
-import type { Deps } from "~/lib/deps.ts";
-import { computeChecksum } from "~/lib/checksumService.ts";
+import type { Db } from "~/db/index";
+import { syncedRoutes } from "~/db/schema";
+import { getValidAccessToken } from "~/lib/tokenService";
+import type { Deps } from "~/lib/deps";
+import { computeChecksum } from "~/lib/checksumService";
 
 export interface SyncResult {
   routeId: string;

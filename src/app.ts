@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
-import { depsMiddleware } from "~/lib/deps.ts";
-import { createRouter } from "~/lib/openapi.ts";
-import { oauthRoutes } from "~/routes/oauth.ts";
-import { syncRoutes } from "~/routes/sync.ts";
+import { depsMiddleware } from "~/lib/deps";
+import { createRouter } from "~/lib/openapi";
+import { oauthRoutes } from "~/routes/oauth";
+import { syncRoutes } from "~/routes/sync";
 
 export const app = createRouter();
 

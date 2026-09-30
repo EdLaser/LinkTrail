@@ -2,11 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
-import { hammerheadAccounts } from "~/db/schema.ts";
-import { requireUser } from "~/lib/http.ts";
-import { createRouter, errorResponse } from "~/lib/openapi.ts";
-import { getFormatFromFilename, MAX_FILE_SIZE } from "~/lib/routeFormats.ts";
-import { syncRoute } from "~/lib/routeSyncService.ts";
+import { hammerheadAccounts } from "~/db/schema";
+import { requireUser } from "~/lib/http";
+import { createRouter, errorResponse } from "~/lib/openapi";
+import { getFormatFromFilename, MAX_FILE_SIZE } from "~/lib/routeFormats";
+import { syncRoute } from "~/lib/routeSyncService";
 
 export const syncRoutes = createRouter();
 

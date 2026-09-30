@@ -1,13 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
-import { hammerheadAccounts } from "~/db/schema.ts";
-import { decryptToken } from "~/lib/crypto.ts";
-import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types.ts";
-import { requireUser } from "~/lib/http.ts";
-import { createRouter, errorResponse } from "~/lib/openapi.ts";
-import { createState, validateAndConsumeState } from "~/lib/stateStore.ts";
-import { deleteAccount, saveTokens } from "~/lib/tokenService.ts";
+import { hammerheadAccounts } from "~/db/schema";
+import { decryptToken } from "~/lib/crypto";
+import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types";
+import { requireUser } from "~/lib/http";
+import { createRouter, errorResponse } from "~/lib/openapi";
+import { createState, validateAndConsumeState } from "~/lib/stateStore";
+import { deleteAccount, saveTokens } from "~/lib/tokenService";
 
 export const oauthRoutes = createRouter();
 

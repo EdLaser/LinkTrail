@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import type { Db } from "~/db/index.ts";
-import { appUsers } from "~/db/schema.ts";
+import type { Db } from "~/db/index";
+import { appUsers } from "~/db/schema";
 
 /** Validates the user_id param (a uuid column would otherwise fail with a DB error) and loads the user. */
 export async function requireUser(db: Db, userId: string | undefined) {

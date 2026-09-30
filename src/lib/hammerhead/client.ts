@@ -1,4 +1,4 @@
-import type { AppConfig } from "~/lib/config.ts";
+import type { AppConfig } from "~/lib/config";
 import type {
   TokenResponse,
   TokenRequest,
@@ -6,7 +6,7 @@ import type {
   RoutesListResponse,
   RouteFileUploadResponse,
   HammerheadScope,
-} from "~/lib/hammerhead/types.ts";
+} from "~/lib/hammerhead/types";
 
 /**
  * Custom error class for Hammerhead API errors

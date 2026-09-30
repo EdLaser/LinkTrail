@@ -1,5 +1,5 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
-import type { AppEnv } from "~/lib/deps.ts";
+import type { AppEnv } from "~/lib/deps";
 
 export const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 

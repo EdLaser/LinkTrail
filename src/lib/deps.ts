@@ -1,8 +1,8 @@
 import { env } from "hono/adapter";
 import { createMiddleware } from "hono/factory";
-import { createDb, type Db } from "~/db/index.ts";
-import { parseConfig, type AppConfig } from "~/lib/config.ts";
-import { HammerheadClient } from "~/lib/hammerhead/client.ts";
+import { createDb, type Db } from "~/db/index";
+import { parseConfig, type AppConfig } from "~/lib/config";
+import { HammerheadClient } from "~/lib/hammerhead/client";
 
 export interface Deps {
   config: AppConfig;
