@@ -1,24 +1,46 @@
+import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { hammerheadAccounts } from "~/db/schema.ts";
 import { decryptToken } from "~/lib/crypto.ts";
-import type { AppEnv } from "~/lib/deps.ts";
 import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types.ts";
 import { requireUser } from "~/lib/http.ts";
+import { createRouter, errorResponse } from "~/lib/openapi.ts";
 import { createState, validateAndConsumeState } from "~/lib/stateStore.ts";
 import { deleteAccount, saveTokens } from "~/lib/tokenService.ts";
 
-export const oauthRoutes = new Hono<AppEnv>();
+export const oauthRoutes = createRouter();
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Unknown error";
 }
 
-// Query: user_id (required), redirect_uri (optional, where the client goes after the callback)
-oauthRoutes.get("/oauth/start", async (c) => {
+const startRoute = createRoute({
+  method: "get",
+  path: "/oauth/start",
+  tags: ["OAuth"],
+  summary: "Start the Hammerhead OAuth flow",
+  request: {
+    query: z.object({
+      user_id: z.uuid().openapi({ description: "App user ID initiating OAuth" }),
+      redirect_uri: z
+        .string()
+        .optional()
+        .openapi({ description: "Where the client goes after the callback completes" }),
+    }),
+  },
+  responses: {
+    302: { description: "Redirect to the Hammerhead authorization page" },
+    400: errorResponse("Invalid parameters"),
+    404: errorResponse("User not found"),
+    409: errorResponse("User is already connected to Hammerhead"),
+  },
+});
+
+oauthRoutes.openapi(startRoute, async (c) => {
   const { db, hammerhead } = c.var;
-  const user = await requireUser(db, c.req.query("user_id"));
+  const query = c.req.valid("query");
+  const user = await requireUser(db, query.user_id);
 
   const [existing] = await db
     .select({ id: hammerheadAccounts.id })
@@ -29,7 +51,7 @@ oauthRoutes.get("/oauth/start", async (c) => {
     throw new HTTPException(409, { message: "This user is already connected to Hammerhead" });
   }
 
-  const state = createState(user.id, c.req.query("redirect_uri"));
+  const state = createState(user.id, query.redirect_uri);
   const authorizeUrl = hammerhead.buildAuthorizeUrl(state, [
     HAMMERHEAD_SCOPES.ROUTE_WRITE,
     HAMMERHEAD_SCOPES.ROUTE_READ,
@@ -38,10 +60,44 @@ oauthRoutes.get("/oauth/start", async (c) => {
   return c.redirect(authorizeUrl);
 });
 
-// The user is identified by the state token, never by a query param.
-oauthRoutes.get("/oauth/callback", async (c) => {
+const callbackRoute = createRoute({
+  method: "get",
+  path: "/oauth/callback",
+  tags: ["OAuth"],
+  summary: "Hammerhead OAuth callback",
+  description: "The user is identified by the state token, never by a query param.",
+  request: {
+    query: z.object({
+      code: z.string().optional(),
+      state: z.string().optional(),
+      error: z.string().optional(),
+      error_description: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Account connected",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+            redirectTo: z.string(),
+            userId: z.string(),
+          }),
+        },
+      },
+    },
+    400: errorResponse("Authorization denied, or missing/invalid code or state"),
+    401: errorResponse("Authorization code exchange failed"),
+    404: errorResponse("User not found"),
+    500: errorResponse("Failed to save tokens"),
+  },
+});
+
+oauthRoutes.openapi(callbackRoute, async (c) => {
   const { db, hammerhead } = c.var;
-  const { code, state, error, error_description: errorDescription } = c.req.query();
+  const { code, state, error, error_description: errorDescription } = c.req.valid("query");
 
   if (error) {
     throw new HTTPException(400, { message: `Authorization denied: ${errorDescription || error}` });
@@ -79,19 +135,50 @@ oauthRoutes.get("/oauth/callback", async (c) => {
     });
   }
 
-  return c.json({
-    success: true,
-    message: "Successfully connected to Hammerhead",
-    redirectTo: stateResult.redirectTo || "/account/connected",
-    userId: user.id,
-  });
+  return c.json(
+    {
+      success: true,
+      message: "Successfully connected to Hammerhead",
+      redirectTo: stateResult.redirectTo || "/account/connected",
+      userId: user.id,
+    },
+    200,
+  );
 });
 
-// TODO: take user_id from a session/JWT instead of the request
-oauthRoutes.post("/api/oauth/disconnect", async (c) => {
+const disconnectRoute = createRoute({
+  method: "post",
+  path: "/api/oauth/disconnect",
+  tags: ["OAuth"],
+  summary: "Disconnect the Hammerhead account and revoke access",
+  // TODO: take user_id from a session/JWT instead of the request
+  request: {
+    query: z.object({ user_id: z.uuid().optional() }),
+    body: {
+      content: {
+        "application/json": { schema: z.object({ user_id: z.uuid().optional() }) },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Disconnected, or nothing was connected",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() }),
+        },
+      },
+    },
+    400: errorResponse("Missing or invalid user_id"),
+    404: errorResponse("User not found"),
+    500: errorResponse("Failed to delete the account"),
+  },
+});
+
+oauthRoutes.openapi(disconnectRoute, async (c) => {
   const { db, config, hammerhead } = c.var;
-  const body = await c.req.json<{ user_id?: string }>().catch(() => ({ user_id: undefined }));
-  const user = await requireUser(db, body.user_id ?? c.req.query("user_id"));
+  const userId = c.req.valid("json").user_id ?? c.req.valid("query").user_id;
+  const user = await requireUser(db, userId);
 
   const [account] = await db
     .select()
@@ -100,7 +187,7 @@ oauthRoutes.post("/api/oauth/disconnect", async (c) => {
     .limit(1);
 
   if (!account) {
-    return c.json({ success: true, message: "Hammerhead account is not connected" });
+    return c.json({ success: true, message: "Hammerhead account is not connected" }, 200);
   }
 
   // Best-effort: local data is deleted even if Hammerhead can't be reached
@@ -118,5 +205,5 @@ oauthRoutes.post("/api/oauth/disconnect", async (c) => {
     });
   }
 
-  return c.json({ success: true, message: "Successfully disconnected from Hammerhead" });
+  return c.json({ success: true, message: "Successfully disconnected from Hammerhead" }, 200);
 });
