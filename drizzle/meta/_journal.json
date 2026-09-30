@@ -8,6 +8,13 @@
       "when": 1790775804912,
       "tag": "0000_clean_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790776852215,
+      "tag": "0001_narrow_sersi",
+      "breakpoints": true
     }
   ]
 }

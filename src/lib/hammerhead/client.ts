@@ -1,8 +1,6 @@
 import type { AppConfig } from "~/lib/config";
 import type {
   TokenResponse,
-  TokenRequest,
-  RouteSummary,
   RoutesListResponse,
   RouteFileUploadResponse,
   HammerheadScope,
@@ -91,12 +89,17 @@ export class HammerheadClient {
   }
 
   /**
-   * Deauthorize: revoke access for a user and clean up their data
+   * Deauthorize: remove the user's account link and their routes imported by this client
    */
   async deauthorize(accessToken: string): Promise<void> {
-    await this.post<void>(`/auth/oauth/deauthorize`, "{}", {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+    const body = new URLSearchParams({
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      token: accessToken,
+    });
+
+    await this.post<void>(`/auth/oauth/deauthorize`, body.toString(), {
+      "Content-Type": "application/x-www-form-urlencoded",
     });
   }
 
@@ -105,22 +108,18 @@ export class HammerheadClient {
   // ========================================================================
 
   /**
-   * Create a route by uploading a GPX/FIT/TCX/KML/KMZ file
-   * POST /routes/file
+   * Create a route by uploading a GPX/FIT/TCX/KML/KMZ file (the name comes from the file)
+   * POST /api/routes/file
    */
   async createRoute(
     accessToken: string,
     fileBuffer: Buffer,
     filename: string,
-    name?: string,
-    description?: string,
   ): Promise<RouteFileUploadResponse> {
     const formData = new FormData();
     formData.append("file", new Blob([fileBuffer]), filename);
-    if (name) formData.append("name", name);
-    if (description) formData.append("description", description);
 
-    return this.post<RouteFileUploadResponse>(`/routes/file`, formData, {
+    return this.post<RouteFileUploadResponse>(`/api/routes/file`, formData, {
       Authorization: `Bearer ${accessToken}`,
       // Don't set Content-Type; fetch will set it with boundary
     });
@@ -128,29 +127,25 @@ export class HammerheadClient {
 
   /**
    * Update an existing route by uploading a new file
-   * PUT /routes/{routeId}/file
+   * PUT /api/routes/{routeId}/file
    */
   async updateRoute(
     accessToken: string,
     routeId: string,
     fileBuffer: Buffer,
     filename: string,
-    name?: string,
-    description?: string,
   ): Promise<RouteFileUploadResponse> {
     const formData = new FormData();
     formData.append("file", new Blob([fileBuffer]), filename);
-    if (name) formData.append("name", name);
-    if (description) formData.append("description", description);
 
-    return this.put<RouteFileUploadResponse>(`/routes/${routeId}/file`, formData, {
+    return this.put<RouteFileUploadResponse>(`/api/routes/${routeId}/file`, formData, {
       Authorization: `Bearer ${accessToken}`,
     });
   }
 
   /**
    * List all routes for the authenticated user
-   * GET /routes
+   * GET /api/routes
    */
   async listRoutes(
     accessToken: string,
@@ -159,20 +154,20 @@ export class HammerheadClient {
   ): Promise<RoutesListResponse> {
     const query = new URLSearchParams({
       page: String(page),
-      per_page: String(perPage),
+      perPage: String(perPage),
     });
 
-    return this.get<RoutesListResponse>(`/routes?${query.toString()}`, {
+    return this.get<RoutesListResponse>(`/api/routes?${query.toString()}`, {
       Authorization: `Bearer ${accessToken}`,
     });
   }
 
   /**
-   * Delete a route
-   * DELETE /routes/{routeId}
+   * Delete a route (only routes created by this client)
+   * DELETE /api/routes/{routeId}
    */
   async deleteRoute(accessToken: string, routeId: string): Promise<void> {
-    await this.delete(`/routes/${routeId}`, {
+    await this.delete(`/api/routes/${routeId}`, {
       Authorization: `Bearer ${accessToken}`,
     });
   }

@@ -3,17 +3,7 @@ import { hammerheadAccounts, syncedRoutes } from "~/db/schema";
 import type { AppConfig } from "~/lib/config";
 import { encryptToken, decryptToken } from "~/lib/crypto";
 import type { Deps } from "~/lib/deps";
-
-/**
- * Type for token response from Hammerhead OAuth
- */
-export interface HammerheadTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-  scope: string;
-}
+import type { TokenResponse } from "~/lib/hammerhead/types";
 
 /**
  * Token lifecycle management: save, retrieve with auto-refresh, delete
@@ -29,7 +19,7 @@ export async function saveTokens(
   { db, config }: Deps,
   appUserId: string,
   hammerheadUserId: string,
-  tokenResponse: HammerheadTokenResponse,
+  tokenResponse: TokenResponse,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + tokenResponse.expires_in * 1000);
 
@@ -46,7 +36,6 @@ export async function saveTokens(
     accessToken: encryptedAccessToken,
     refreshToken: encryptedRefreshToken,
     expiresAt,
-    scope: tokenResponse.scope,
   };
   await db
     .insert(hammerheadAccounts)
@@ -108,7 +97,7 @@ export async function getValidAccessToken(deps: Deps, appUserId: string): Promis
 export async function refreshAccessToken(
   config: AppConfig,
   refreshToken: string,
-): Promise<HammerheadTokenResponse> {
+): Promise<TokenResponse> {
   const response = await fetch(`${config.hammerheadApiBaseUrl}/auth/oauth/token`, {
     method: "POST",
     headers: {
@@ -126,7 +115,7 @@ export async function refreshAccessToken(
     throw new Error(`Hammerhead token refresh failed: ${response.status} ${response.statusText}`);
   }
 
-  return response.json() as Promise<HammerheadTokenResponse>;
+  return response.json() as Promise<TokenResponse>;
 }
 
 /**

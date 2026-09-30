@@ -125,11 +125,8 @@ oauthRoutes.openapi(callbackRoute, async (c) => {
     });
   }
 
-  // TODO: fetch the real Hammerhead user id once a userinfo endpoint is available
-  const hammerheadUserId = `${user.email}_${Date.now()}`;
-
   try {
-    await saveTokens(c.var, user.id, hammerheadUserId, tokenResponse);
+    await saveTokens(c.var, user.id, tokenResponse.user_id, tokenResponse);
   } catch (err) {
     throw new HTTPException(500, {
       message: `Failed to save authentication tokens: ${errorMessage(err)}`,

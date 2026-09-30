@@ -22,7 +22,8 @@ export interface TokenResponse {
   refresh_token: string
   expires_in: number // seconds
   token_type: 'Bearer'
-  scope: string
+  // Hammerhead's ID for the authorized user
+  user_id: string
 }
 
 export interface AuthorizeParams {
@@ -37,86 +38,39 @@ export interface AuthorizeParams {
 // Routes
 // ============================================================================
 
-export interface Route {
-  id: string
-  name: string
-  description?: string
-  // Distance in kilometers
-  distance: number
-  // Elevation gain in meters
-  elevationGain: number
-  // Elevation loss in meters
-  elevationLoss: number
-  // Minimum elevation in meters
-  minElevation: number
-  // Maximum elevation in meters
-  maxElevation: number
-  // Total duration in seconds
-  duration: number
-  // Route difficulty (1-5)
-  difficulty?: number
-  // Creation timestamp
-  createdAt: string
-  // Last modified timestamp
-  updatedAt: string
-  // User ID who created the route
-  userId: string
-  // Source of the route (e.g., "imported", "created")
-  source?: string
-  // GPX file data (base64 or URL)
-  gpxUrl?: string
-  // Route tracking (GPS points)
-  trackPoints?: TrackPoint[]
-}
-
-export interface TrackPoint {
-  latitude: number
-  longitude: number
-  elevation?: number
-  timestamp?: string
-}
-
 export interface RouteSummary {
   id: string
   name: string
-  distance: number
-  elevationGain: number
   createdAt: string
-  userId: string
+  // Distance in meters
+  distance: number
+  // Elevation gain in meters
+  gain: number
 }
 
-export interface RoutesListResponse {
-  data: RouteSummary[]
-  pagination: Pagination
+export interface Route extends RouteSummary {
+  updatedAt: string
+  // Encoded polyline
+  polyline: string
 }
 
 export interface Pagination {
-  page: number
-  perPage: number
-  total: number
+  totalItems: number
   totalPages: number
+  perPage: number
+  currentPage: number
+}
+
+export interface RoutesListResponse extends Pagination {
+  data: RouteSummary[]
 }
 
 // ============================================================================
 // Routes - File Upload Payloads
 // ============================================================================
 
-export interface RouteFileUploadRequest {
-  file: Blob | Buffer
-  filename: string
-  description?: string
-  name?: string
-}
-
-export interface RouteFileUploadResponse {
-  id: string
-  name: string
-  distance: number
-  elevationGain: number
-  createdAt: string
-  userId: string
-  gpxUrl: string
-}
+// POST /routes/file and PUT /routes/{id}/file take a multipart `file` field and return the route
+export type RouteFileUploadResponse = Route
 
 // ============================================================================
 // Webhooks
@@ -128,26 +82,8 @@ export interface WebhookSignatureHeader {
 }
 
 export interface ActivityWebhook {
-  type: 'activity'
-  timestamp: string
-  data: {
-    activityId: string
-    userId: string
-    routeId?: string
-    startTime: string
-    endTime: string
-    duration: number // seconds
-    distance: number // kilometers
-    elevationGain: number // meters
-    avgHeartRate?: number
-    maxHeartRate?: number
-    avgCadence?: number
-    maxCadence?: number
-    avgPower?: number
-    maxPower?: number
-    avgSpeed: number // km/h
-    maxSpeed: number // km/h
-  }
+  activityId: string
+  userId: string
 }
 
 export type WebhookPayload = ActivityWebhook

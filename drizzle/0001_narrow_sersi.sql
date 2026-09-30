@@ -1,0 +1,1 @@
+ALTER TABLE "hammerhead_accounts" DROP COLUMN "scope";

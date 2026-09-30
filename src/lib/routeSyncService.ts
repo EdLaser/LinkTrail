@@ -75,8 +75,6 @@ export async function syncRoute(
         existingSync.hammerheadRouteId,
         route.file,
         route.filename,
-        route.name,
-        route.description,
       );
 
       await db
@@ -85,7 +83,7 @@ export async function syncRoute(
           name: response.name,
           description: route.description ?? existingSync.description,
           distance: response.distance,
-          elevationGain: response.elevationGain,
+          elevationGain: response.gain,
           checksum: newChecksum,
           lastSyncedAt: new Date(),
         })
@@ -105,13 +103,7 @@ export async function syncRoute(
   }
 
   try {
-    const response = await hammerhead.createRoute(
-      accessToken,
-      route.file,
-      route.filename,
-      route.name,
-      route.description,
-    );
+    const response = await hammerhead.createRoute(accessToken, route.file, route.filename);
 
     const [created] = await db
       .insert(syncedRoutes)
@@ -123,7 +115,7 @@ export async function syncRoute(
         name: response.name,
         description: route.description,
         distance: response.distance,
-        elevationGain: response.elevationGain,
+        elevationGain: response.gain,
         checksum: newChecksum,
       })
       .returning({ id: syncedRoutes.id });

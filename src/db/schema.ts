@@ -27,7 +27,6 @@ export const hammerheadAccounts = pgTable("hammerhead_accounts", {
   // AES-256-GCM encrypted
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
-  scope: text("scope").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ...timestamps,
 });
