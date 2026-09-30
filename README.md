@@ -107,8 +107,8 @@ cd hammerhead-bikemap-sync
 # 2. Install dependencies
 bun install
 
-# 3. Copy environment template and fill in values
-cp .env.example .env
+# 3. fill in values for the env file
+cp .env
 
 # 4. Start local Postgres
 docker compose up -d
