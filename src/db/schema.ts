@@ -1,0 +1,61 @@
+import {
+  doublePrecision,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+const timestamps = {
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+};
+
+// Our own application's user (e.g., a Bikemap account holder using this service)
+export const appUsers = pgTable("app_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  ...timestamps,
+});
+
+// One Hammerhead OAuth connection per app user
+export const hammerheadAccounts = pgTable("hammerhead_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  appUserId: uuid("app_user_id")
+    .notNull()
+    .unique()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  hammerheadUserId: text("hammerhead_user_id").notNull(),
+  // AES-256-GCM encrypted
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  scope: text("scope").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ...timestamps,
+});
+
+// Routes synced from Bikemap to Hammerhead
+export const syncedRoutes = pgTable(
+  "synced_routes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appUserId: uuid("app_user_id")
+      .notNull()
+      .references(() => appUsers.id, { onDelete: "cascade" }),
+    bikemapRouteId: text("bikemap_route_id").notNull(),
+    hammerheadRouteId: text("hammerhead_route_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    distance: doublePrecision("distance").notNull(),
+    elevationGain: doublePrecision("elevation_gain").notNull(),
+    // SHA-256 of the uploaded file, used to detect changes
+    checksum: text("checksum").notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [unique().on(t.appUserId, t.bikemapRouteId)],
+);

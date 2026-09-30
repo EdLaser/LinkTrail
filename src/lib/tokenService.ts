@@ -1,7 +1,8 @@
-import { db } from "~/server/utils/db.ts";
-import { encryptToken, decryptToken } from "~/server/utils/crypto.ts";
-import { getConfig } from "~/server/utils/config.ts";
-import { hammerheadClient } from "~/server/utils/hammerhead/client.ts";
+import { eq } from "drizzle-orm";
+import { db } from "~/db/index.ts";
+import { hammerheadAccounts, syncedRoutes } from "~/db/schema.ts";
+import { encryptToken, decryptToken } from "~/lib/crypto.ts";
+import { getConfig } from "~/lib/config.ts";
 
 /**
  * Type for token response from Hammerhead OAuth
@@ -36,24 +37,17 @@ export async function saveTokens(
   const encryptedRefreshToken = encryptToken(tokenResponse.refresh_token);
 
   // Upsert HammerheadAccount
-  await db.hammerheadAccount.upsert({
-    where: { appUserId },
-    update: {
-      accessToken: encryptedAccessToken,
-      refreshToken: encryptedRefreshToken,
-      expiresAt,
-      scope: tokenResponse.scope,
-      hammerheadUserId,
-    },
-    create: {
-      appUserId,
-      hammerheadUserId,
-      accessToken: encryptedAccessToken,
-      refreshToken: encryptedRefreshToken,
-      expiresAt,
-      scope: tokenResponse.scope,
-    },
-  });
+  const values = {
+    hammerheadUserId,
+    accessToken: encryptedAccessToken,
+    refreshToken: encryptedRefreshToken,
+    expiresAt,
+    scope: tokenResponse.scope,
+  };
+  await db
+    .insert(hammerheadAccounts)
+    .values({ appUserId, ...values })
+    .onConflictDoUpdate({ target: hammerheadAccounts.appUserId, set: values });
 }
 
 /**
@@ -62,9 +56,11 @@ export async function saveTokens(
  * @throws Error if user has no linked Hammerhead account or refresh fails
  */
 export async function getValidAccessToken(appUserId: string): Promise<string> {
-  const account = await db.hammerheadAccount.findUnique({
-    where: { appUserId },
-  });
+  const [account] = await db
+    .select()
+    .from(hammerheadAccounts)
+    .where(eq(hammerheadAccounts.appUserId, appUserId))
+    .limit(1);
 
   if (!account) {
     throw new Error(`No Hammerhead account linked for user ${appUserId}`);
@@ -133,12 +129,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<Hammerhe
  */
 export async function deleteAccount(appUserId: string): Promise<void> {
   // Delete associated SyncedRoutes first (cascade would work, but explicit is clearer)
-  await db.syncedRoute.deleteMany({
-    where: { appUserId },
-  });
+  await db.delete(syncedRoutes).where(eq(syncedRoutes.appUserId, appUserId));
 
-  // Delete the HammerheadAccount
-  await db.hammerheadAccount.delete({
-    where: { appUserId },
-  });
+  await db.delete(hammerheadAccounts).where(eq(hammerheadAccounts.appUserId, appUserId));
 }

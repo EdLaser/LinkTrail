@@ -10,9 +10,7 @@ package-manager-locks
 
 .output
 
-# Prisma
-prisma/migrations/
-.prisma/
+# Drizzle migrations in drizzle/ are committed
 
 # Build outputs
 dist/

@@ -65,19 +65,19 @@ Once a user connects their Hammerhead account, routes are converted to GPX and p
 | Layer | Choice | Reason |
 |---|---|---|
 | Language | TypeScript | Type safety across API contracts and DB models |
-| Runtime/Framework | [Nitro v3](https://nitro.build) | Modern, full-stack Nitro framework with built-in TS support and native middleware |
-| Server Library | [h3](https://h3.dev/) | Minimal HTTP framework for Nitro handlers |
-| ORM | [Prisma v7](https://www.prisma.io/) | Type-safe Postgres access + migrations with PostgreSQL adapter |
+| Runtime | [Bun](https://bun.com) | Fast TypeScript runtime, package manager and server |
+| Web Framework | [Hono](https://hono.dev) | Small, fast, Web-standards HTTP framework |
+| ORM | [Drizzle ORM](https://orm.drizzle.team) | Type-safe SQL for Postgres with SQL migrations via drizzle-kit |
 | Database | PostgreSQL 16 | Relational storage for users, tokens, and route sync mappings |
 | Validation | [Zod](https://zod.dev/) | Runtime validation of env vars and webhook payloads |
-| HTTP requests | Node.js native | Built-in fetch API for Hammerhead API calls |
+| HTTP requests | Web `fetch` | Built-in fetch API for Hammerhead API calls |
 | Containerization | Docker Compose | Local Postgres instance for development |
 
 ---
 
 ## Prerequisites
 
-- Node.js **≥ 20**
+- [Bun](https://bun.com) **≥ 1.2**
 - Docker & Docker Compose (for local Postgres), or an existing Postgres 14+ instance
 - A publicly reachable HTTPS domain for production (required for OAuth `redirect_uri` and webhooks) — e.g. via a reverse proxy, Cloudflare Tunnel, or your hosting provider's domain
 - A registered **Hammerhead API Client** (see below)
@@ -105,7 +105,7 @@ git clone https://github.com/your-org/hammerhead-bikemap-sync.git
 cd hammerhead-bikemap-sync
 
 # 2. Install dependencies
-pnpm install
+bun install
 
 # 3. Copy environment template and fill in values
 cp .env.example .env
@@ -113,11 +113,11 @@ cp .env.example .env
 # 4. Start local Postgres
 docker compose up -d
 
-# 5. Run Prisma migrations
-pnpm prisma:migrate
+# 5. Apply database migrations
+bun run db:migrate
 
-# 6. Start the dev server (hot reload with Nitro)
-pnpm dev
+# 6. Start the dev server (hot reload)
+bun run dev
 ```
 
 The server will start on `http://localhost:3000` by default (configurable via `PORT` env var).
@@ -163,22 +163,23 @@ openssl rand -hex 32
 
 ## Database
 
-Schema is managed via Prisma (`prisma/schema.prisma`). Core models:
+Schema is managed via Drizzle (`src/db/schema.ts`), with generated SQL migrations in `drizzle/`. Core tables:
 
-- **`AppUser`** — a user of your service (e.g. a Bikemap account holder)
-- **`HammerheadAccount`** — the OAuth token pair + metadata linked to an `AppUser`
-- **`SyncedRoute`** — mapping between a Bikemap route ID and the resulting Hammerhead route ID, used to avoid duplicate pushes
+- **`app_users`** — a user of your service (e.g. a Bikemap account holder)
+- **`hammerhead_accounts`** — the OAuth token pair + metadata linked to an app user
+- **`synced_routes`** — mapping between a Bikemap route ID and the resulting Hammerhead route ID, used to avoid duplicate pushes
 
-To inspect the schema visually:
+To inspect the data visually:
 
 ```bash
-pnpm prisma studio
+bun run db:studio
 ```
 
-To create a new migration after editing the schema:
+To create and apply a migration after editing the schema:
 
 ```bash
-pnpm prisma:migrate --name your_migration_name
+bun run db:generate
+bun run db:migrate
 ```
 
 ---
@@ -187,42 +188,36 @@ pnpm prisma:migrate --name your_migration_name
 
 | Command | Description |
 |---|---|
-| `pnpm dev` | Start in development mode (hot reload with Nitro) |
-| `pnpm build` | Compile & bundle for production (outputs to `.output/`) |
-| `pnpm preview` | Preview production build locally |
-| `pnpm prisma:migrate` | Apply migrations locally |
-| `pnpm prisma:deploy` | Apply migrations in production (non-interactive) |
-| `pnpm prisma:seed` | Run database seed script |
+| `bun run dev` | Start in development mode (hot reload) |
+| `bun run start` | Start for production |
+| `bun run typecheck` | Type-check the project |
+| `bun run db:generate` | Generate a SQL migration from schema changes |
+| `bun run db:migrate` | Apply migrations (local and production) |
+| `bun run db:studio` | Open Drizzle Studio |
 
 ---
 
 ## Project Structure
 
-This is a **Nitro v3** full-stack application. Key directories:
+This is a **Hono** application running on **Bun**. Key directories:
 
 ```
-server/
-  ├── api/           # API route handlers (auto-prefixed with /api)
-  ├── routes/        # HTTP routes (file-based routing)
-  ├── middleware/    # Request middleware
-  ├── utils/         # Shared utilities and helpers
-  └── plugins/       # Server plugins and initialization
+src/
+  ├── index.ts       # Bun entrypoint (validates config, exports the fetch handler)
+  ├── app.ts         # Hono app, error handling, route mounting
+  ├── routes/        # Route modules (oauth, sync)
+  ├── db/            # Drizzle schema and client
+  └── lib/           # Config, crypto, token service, sync service, Hammerhead client
 
-prisma/
-  ├── schema.prisma  # Database schema (Prisma ORM)
-  ├── migrations/    # Prisma migration files
-  └── seed.ts        # Database seed script
+drizzle/            # Generated SQL migrations (commit these)
 
-public/             # Static assets (served directly)
-
-.env                # Environment variables (local development)
-nitro.config.ts     # Nitro server configuration
-prisma.config.ts    # Prisma configuration (PostgreSQL dialect)
+.env                # Environment variables (local development, loaded by Bun)
+drizzle.config.ts   # drizzle-kit configuration (PostgreSQL dialect)
 ```
 
-Route handlers are created as files in `server/api/` or `server/routes/`. Nitro automatically creates HTTP endpoints based on file structure. For example:
-- `server/api/oauth/start.get.ts` → `GET /api/oauth/start`
-- `server/routes/webhooks/hammerhead.post.ts` → `POST /webhooks/hammerhead`
+Routes are Hono routers in `src/routes/` mounted in `src/app.ts`. For example:
+- `src/routes/oauth.ts` → `GET /oauth/start`, `GET /oauth/callback`, `POST /api/oauth/disconnect`
+- `src/routes/sync.ts` → `POST /api/sync/route`
 
 ---
 
@@ -279,15 +274,19 @@ curl -X POST https://yourdomain.com/sync/route \
 
 Hammerhead signs webhook payloads with an `X-Hmac-Signature` header (HMAC-SHA256). Incoming requests to `/webhooks/hammerhead` are verified against `HAMMERHEAD_WEBHOOK_SECRET` before processing.
 
-In Nitro, raw request body is accessible via `readRawBody()` in the event handler:
+In Hono, the raw request body is available via `c.req.text()`:
 
 ```typescript
-// server/routes/webhooks/hammerhead.post.ts
+// src/routes/webhooks.ts
 import { createHmac } from 'crypto'
+import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 
-export default defineEventHandler(async (event) => {
-  const signature = getHeader(event, 'x-hmac-signature')
-  const rawBody = await readRawBody(event)
+export const webhookRoutes = new Hono()
+
+webhookRoutes.post('/webhooks/hammerhead', async (c) => {
+  const signature = c.req.header('x-hmac-signature')
+  const rawBody = await c.req.text()
   
   // Verify HMAC-SHA256
   const hash = createHmac('sha256', process.env.HAMMERHEAD_WEBHOOK_SECRET!)
@@ -295,14 +294,12 @@ export default defineEventHandler(async (event) => {
     .digest('hex')
   
   if (hash !== signature) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Invalid webhook signature'
-    })
+    throw new HTTPException(401, { message: 'Invalid webhook signature' })
   }
   
   const payload = JSON.parse(rawBody)
   // Process webhook...
+  return c.json({ received: true })
 })
 ```
 

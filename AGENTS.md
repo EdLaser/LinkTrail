@@ -1,10 +1,8 @@
-This project is based on [Nitro v3](https://nitro.build), [h3](https://h3.dev/), and [Rolldown](https://rolldown.rs/).
-
-Refer to `node_modules/nitro/dist/docs/README.md` when working on server (your knowledge about Nitro v3 is likely outdated!).
+This project is based on [Hono](https://hono.dev/), running on [Bun](https://bun.com), with [Drizzle ORM](https://orm.drizzle.team) for PostgreSQL. Use `bun` / `bunx` for all commands.
 
 ## Project Structure
 
-`server/` contains server-side code with supported subdirs (create as needed): `api/` (/api prefixed handlers), `routes/` (non-prefixed route handlers), `middleware/`, `plugins/`, `utils/`, `assets/`, and `tasks/`. `public/` holds static assets (copied, not bundled). Config files: `nitro.config.ts` (serverDir, routeRules, preset, etc.), `tsconfig.json`.
+`src/index.ts` is the Bun entrypoint (validates config, exports `{ port, fetch }`), `src/app.ts` builds the Hono app, `src/routes/` holds route modules, `src/db/` holds the Drizzle schema (`schema.ts`) and client (`index.ts`), and `src/lib/` holds config, crypto, token/sync services and the Hammerhead client. Generated migrations live in `drizzle/` (`bun run db:generate`, `bun run db:migrate`). Config files: `drizzle.config.ts`, `tsconfig.json`.
 
 ## Conventions
 
