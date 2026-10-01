@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { hammerheadAccounts } from "~/db/schema";
 import { requireAuth, requireAuthUser } from "~/lib/auth";
 import { createRouter, errorResponse } from "~/lib/openapi";
+import { csrfMiddleware } from "~/lib/security";
 import { PROVIDER_IDS } from "~/lib/providers/index";
 import { ProviderError } from "~/lib/providers/types";
 import { syncRoute } from "~/lib/routeSyncService";
@@ -59,6 +60,7 @@ const syncRouteDef = createRoute({
   },
 });
 
+syncRoutes.use(syncRouteDef.getRoutingPath(), csrfMiddleware());
 syncRoutes.use(syncRouteDef.getRoutingPath(), requireAuth);
 
 syncRoutes.openapi(syncRouteDef, async (c) => {

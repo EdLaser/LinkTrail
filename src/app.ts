@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { depsMiddleware } from "~/lib/deps";
+import { securityHeadersMiddleware } from "~/lib/security";
 import { createRouter } from "~/lib/openapi";
 import { oauthRoutes } from "~/routes/oauth";
 import { syncRoutes } from "~/routes/sync";
@@ -8,6 +9,7 @@ import { syncRoutes } from "~/routes/sync";
 export const app = createRouter();
 
 app.use(depsMiddleware);
+app.use(securityHeadersMiddleware());
 
 app.openAPIRegistry.registerComponent("securitySchemes", "Bearer", {
   type: "http",

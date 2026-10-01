@@ -7,6 +7,7 @@ import { decryptToken } from "~/lib/crypto";
 import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types";
 import { requireUser } from "~/lib/http";
 import { createRouter, errorResponse } from "~/lib/openapi";
+import { csrfMiddleware } from "~/lib/security";
 import { createState, validateAndConsumeState } from "~/lib/stateStore";
 import { deleteAccount, saveTokens } from "~/lib/tokenService";
 
@@ -165,6 +166,7 @@ const disconnectRoute = createRoute({
   },
 });
 
+oauthRoutes.use(disconnectRoute.getRoutingPath(), csrfMiddleware());
 oauthRoutes.use(disconnectRoute.getRoutingPath(), requireAuth);
 
 oauthRoutes.openapi(disconnectRoute, async (c) => {

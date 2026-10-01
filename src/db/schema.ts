@@ -1,5 +1,5 @@
 import { doublePrecision, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import type { RouteProviderId } from "~/lib/providers/index";
+import type { RouteProviderId } from "~/lib/providers/";
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

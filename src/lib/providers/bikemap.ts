@@ -1,11 +1,33 @@
 import { getFormatFromFilename, MAX_FILE_SIZE } from "~/lib/routeFormats";
-import { ProviderError, type ProviderRoute, type RouteProvider } from "~/lib/providers/types";
+import {
+  ProviderError,
+  type ProviderRoute,
+  type ProviderUser,
+  type RouteInfo,
+  type RoutesListResult,
+  type RouteProvider,
+} from "~/lib/providers/types";
 
 const FETCH_TIMEOUT_MS = 30_000;
 
 /** Fetches GPX files from a configurable URL template containing `{id}`. */
 export class BikemapProvider implements RouteProvider {
+  readonly baseUrl = "https://bikemap.io";
+  readonly apiUrl = "https://api.bikemap.io";
+
   constructor(private urlTemplate: string | undefined) {}
+
+  async getUserInfo(accessToken: string): Promise<ProviderUser> {
+    throw new ProviderError("Bikemap user profile retrieval is not supported", "not_supported");
+  }
+
+  async listRoutes(accessToken?: string, query?: any): Promise<RoutesListResult> {
+    throw new ProviderError("Bikemap route listing is not supported", "not_supported");
+  }
+
+  async getRouteInfo(routeId: string, accessToken?: string): Promise<RouteInfo> {
+    throw new ProviderError("Bikemap route info retrieval is not supported", "not_supported");
+  }
 
   async fetchRoute(sourceRouteId: string): Promise<ProviderRoute> {
     if (!this.urlTemplate) {
