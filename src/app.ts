@@ -1,13 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
+import { requestId } from "hono/request-id";
+import { createLogger } from "~/lib/logger.ts";
 import { depsMiddleware } from "~/lib/deps";
 import { securityHeadersMiddleware } from "~/lib/security";
 import { createRouter } from "~/lib/openapi";
 import { oauthRoutes } from "~/routes/oauth";
 import { syncRoutes } from "~/routes/sync";
 
+const appLogger = createLogger("app");
+
 export const app = createRouter();
 
+app.use(requestId());
 app.use(depsMiddleware);
 app.use(securityHeadersMiddleware());
 
@@ -40,9 +45,10 @@ app.doc("/doc", {
 });
 
 app.onError((err, c) => {
+  const reqId = c.get("requestId");
   if (err instanceof HTTPException) {
     return c.json({ error: err.message }, err.status);
   }
-  console.error(err);
+  appLogger.error({ err, requestId: reqId }, "Unhandled error");
   return c.json({ error: "Internal Server Error" }, 500);
 });

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { hammerheadAccounts } from "~/db/schema";
 import { requireAuth, requireAuthUser } from "~/lib/auth";
+import { createLogger } from "~/lib/logger.ts";
 import { decryptToken } from "~/lib/crypto";
 import { HAMMERHEAD_SCOPES } from "~/lib/hammerhead/types";
 import { requireUser } from "~/lib/http";
@@ -10,6 +11,8 @@ import { createRouter, errorResponse } from "~/lib/openapi";
 import { csrfMiddleware } from "~/lib/security";
 import { createState, validateAndConsumeState } from "~/lib/stateStore";
 import { deleteAccount, saveTokens } from "~/lib/tokenService";
+
+const oauthLogger = createLogger("oauth");
 
 export const oauthRoutes = createRouter();
 
@@ -187,7 +190,10 @@ oauthRoutes.openapi(disconnectRoute, async (c) => {
   try {
     await hammerhead.deauthorize(decryptToken(account.accessToken, config.tokenEncryptionKey));
   } catch (err) {
-    console.warn(`Failed to revoke Hammerhead access: ${errorMessage(err)}`);
+    oauthLogger.warn(
+      { err, userId: user.id },
+      "Failed to revoke Hammerhead access"
+    );
   }
 
   try {

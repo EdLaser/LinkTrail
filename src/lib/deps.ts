@@ -1,6 +1,7 @@
 import { env } from "hono/adapter";
 import { createMiddleware } from "hono/factory";
 import type { JwtVariables } from "hono/jwt";
+import type { RequestIdVariables } from "hono/request-id";
 import { createDb, type Db } from "~/db/index";
 import { parseConfig, type AppConfig } from "~/lib/config";
 import { HammerheadClient } from "~/lib/hammerhead/client";
@@ -14,7 +15,7 @@ export interface Deps {
   providers: Record<RouteProviderId, RouteProvider>;
 }
 
-export type AppEnv = { Variables: Deps & JwtVariables };
+export type AppEnv = { Variables: Deps & JwtVariables & RequestIdVariables };
 
 // Built once from the first request's env so the DB pool is shared across requests
 let deps: Deps | undefined;
