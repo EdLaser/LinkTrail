@@ -1,11 +1,10 @@
-import { csrf } from "hono/middleware/csrf";
-import { secureHeaders } from "hono/middleware/secure-headers";
-import type { HonoRequest } from "hono";
+import { csrf } from "hono/csrf";
+import { secureHeaders } from "hono/secure-headers";
 
 /**
  * Configures CSRF protection middleware.
  * Validates that state-mutating requests (POST/PUT/DELETE/PATCH) include a valid CSRF token.
- * Uses cookie-based CSRF tokens with origin validation.
+ * Uses origin and Sec-Fetch-Site header validation.
  */
 export const csrfMiddleware = () =>
   csrf({
@@ -33,20 +32,16 @@ export const securityHeadersMiddleware = () =>
   secureHeaders({
     // Content Security Policy: restrict where resources can be loaded from
     contentSecurityPolicy: {
-      base: ["self"],
-      scriptSrc: ["self"],
-      styleSrc: ["self"],
-      imgSrc: ["self", "data:"],
-      fontSrc: ["self"],
-      connectSrc: ["self"],
-      frameSrc: ["none"],
-      defaultSrc: ["self"],
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
     },
     // Strict-Transport-Security: enforce HTTPS for 1 year
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubdomains: true,
-    },
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
     // X-Frame-Options: prevent clickjacking by disallowing framing
     xFrameOptions: "DENY",
     // X-Content-Type-Options: prevent MIME-type sniffing
